@@ -37,4 +37,4 @@ See for UCI documentation:
 [http://wiki.openwrt.org/doc/techref/uci]: http://wiki.openwrt.org/doc/techref/uci
 
 Further information:
-[https://github.com/lefant/ansible-openwrt]:https://github.com/lefant/ansible-openwrt
+[https://github.com/lefant/ansible-openwrt]: https://github.com/lefant/ansible-openwrt

@@ -4,32 +4,37 @@ openwrt-uci
 setting of uci config keys on openwrt systems. this is just the
 library module so that other openwrt roles can dependend on it.
 
-check out [https://github.com/lefant/ansible-openwrt] for an example on
-how it can be used.
-
 compare: [http://wiki.openwrt.org/doc/uci] and [http://wiki.openwrt.org/doc/techref/uci]
 
 Requirements
 ------------
 
-must be kept minimal as this is supposed to run on openwrt embedded
-systems. in particular we try get by with plain POSIX shell, using
-neither python nor bash in any way. lua could be an option as that
-seems to be the openwrt scripting language of choice.
+* lua
 
-License
--------
+Usage
+-----
 
-BSD
+Set a value:
+```
+uci: command=set config={{config}} section={{section}} option={{option}} value={{value}}
+```
 
-Author Information
-------------------
+Commit
+------
 
-Fabian Linzberger, [http://e.lefant.net/]
+```
+uci: command=commit config={{config}}
+```
 
+Supported commands in future:
+-----------------------------
 
+* get
+* get_all
 
-[https://github.com/lefant/ansible-openwrt]: https://github.com/lefant/ansible-openwrt
+See for UCI documentation:
 [http://wiki.openwrt.org/doc/uci]: http://wiki.openwrt.org/doc/uci
 [http://wiki.openwrt.org/doc/techref/uci]: http://wiki.openwrt.org/doc/techref/uci
-[http://e.lefant.net/]: http://e.lefant.net/
+
+Further information:
+[https://github.com/lefant/ansible-openwrt]:https://github.com/lefant/ansible-openwrt

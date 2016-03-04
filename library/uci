@@ -330,21 +330,24 @@ function getUciValue(config, section, option)
 end
 
 
-function setUciValue(config, section, option, newValue)
-  local oldvalue = getUciValue(config, section, option)
+function getSectionName(config, sectionType)
+  local uciSection = getUciSection(config, sectionType)
+  return uciSection[".name"]
+end
 
-  if oldvalue and oldvalue == newValue then
+
+function setUciValue(config, section, option, newValue)
+  if section then
+    section = getSectionName(config, config)
+  end
+
+  local oldValue = getUciValue(config, section, option)
+
+  if oldValue and oldValue == newValue then
       exitUnchanged()
   else
-    if section then
-      uci:set(config, section, option, newValue)
-    else
-      local uciSection = getUciSection(config, config)
-      local sectionName = uciSection[".name"]
-
-      uci:set(config, sectionName, option, newValue)
-      uci:save(config)
-    end
+    uci:set(config, section, option, newValue)
+    uci:save(config)
 
     exitChanged()
   end
@@ -375,8 +378,8 @@ elseif command == "commit" then
 
   exitChanged()
 elseif command == "get_all" then
-  local key = parseMandatoryParameter(arguments, "key")
-  local values = uci:get_all(key)
+  local config = parseMandatoryParameter(arguments, "config")
+  local values = uci:get_all(config)
 
   exitUnchanged(values)
 else

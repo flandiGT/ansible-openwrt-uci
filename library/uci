@@ -338,10 +338,6 @@ end
 
 
 function setUciValue(config, section, option, newValue)
-  if not section then
-    section = getSectionName(config, config)
-  end
-
   local oldValue = getUciValue(config, section, option)
 
   if oldValue and oldValue == newValue then
@@ -352,6 +348,12 @@ function setUciValue(config, section, option, newValue)
 
     exitChanged()
   end
+end
+
+
+function setUciTypeValue(config, type, option, newValue)
+  local section = getSectionName(config, type)
+  setUciValue(config, section, option, newValue)
 end
 
 
@@ -422,11 +424,17 @@ if command == "get" then
   exitUnchanged(value)
 elseif command == "set" then
   local config = parseMandatoryParameter(arguments, "config")
-  local section = parseOptionalParameter(arguments, "section")
   local option = parseMandatoryParameter(arguments, "option")
   local value = parseMandatoryParameter(arguments, "value")
 
-  setUciValue(config, section, option, value)
+  local section = parseOptionalParameter(arguments, "section")
+  local type = nil
+  if section then
+    setUciValue(config, section, option, value)
+  else
+    type = parseMandatoryParameter(arguments, "type")
+    setUciTypeValue(config, type, option, value)
+  end
 elseif command == "set_list" then
   local config = parseMandatoryParameter(arguments, "config")
   local section = parseOptionalParameter(arguments, "section")

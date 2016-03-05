@@ -16,7 +16,12 @@ Usage
 
 Set a value:
 ```
-uci: command=set config={{config}} section={{section}} option={{option}} value={{value}}
+uci: command=set config={{config}} [section={{section}}] option={{option}} value={{value}}
+```
+
+Set values as list:
+```
+uci: command=set_list config={{config}} [section={{section}}] option={{option}} value={{values|comma separated}}
 ```
 
 Commit

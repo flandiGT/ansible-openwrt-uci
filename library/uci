@@ -161,21 +161,22 @@ local uci  = require('uci').cursor()
 local json = createJson()
 
 
+function split(inputstr, sep)
+  if sep == nil then
+    sep = "%s"
+  end
+  local t={} ; i=1
+  for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
+    t[i] = str
+    i = i + 1
+  end
+  return t
+end
+
+
 function createAnsibleArgumentParser()
   local fs   = require('nixio.fs')
   local parser = {}
-
-  function mysplit(inputstr, sep)
-    if sep == nil then
-      sep = "%s"
-    end
-    local t={} ; i=1
-    for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
-      t[i] = str
-      i = i + 1
-    end
-    return t
-  end
 
   function parser.parse(arguments)
     local argumentsLine = fs.readfile(arg[1])
@@ -183,7 +184,7 @@ function createAnsibleArgumentParser()
     argumentsLine = string.gsub(argumentsLine, "\\", "")
     argumentsLine = string.gsub(argumentsLine, "\"", "")
 
-    return mysplit(argumentsLine, " ")
+    return split(argumentsLine, " ")
   end
 
   return parser
@@ -337,7 +338,7 @@ end
 
 
 function setUciValue(config, section, option, newValue)
-  if section then
+  if not section then
     section = getSectionName(config, config)
   end
 
@@ -345,6 +346,60 @@ function setUciValue(config, section, option, newValue)
 
   if oldValue and oldValue == newValue then
       exitUnchanged()
+  else
+    uci:set(config, section, option, newValue)
+    uci:save(config)
+
+    exitChanged()
+  end
+end
+
+
+function Set (list)
+  local set = {}
+  for _, l in ipairs(list) do set[l] = true end
+  return set
+end
+
+
+function size(list)
+  if type(list.n) == "number" then return list.n end
+
+  local max = 0
+  for i, _ in pairs(list) do
+    if type(i) == "number" and i > max then max = i end
+  end
+
+  return max
+end
+
+
+function areListsEqual(first, second)
+  if size(first) ~= size(second) then
+    return false
+  end
+
+  local firstAsSet = Set(first)
+
+  for _, value in pairs(second) do
+    if not firstAsSet[value] then
+      return false
+    end
+  end
+
+  return true
+end
+
+
+function setUciList(config, section, option, newValue)
+  if not section then
+    section = getSectionName(config, config)
+  end
+
+  local oldValue = getUciValue(config, section, option)
+
+  if oldValue and areListsEqual(oldValue, newValue) then
+    exitUnchanged()
   else
     uci:set(config, section, option, newValue)
     uci:save(config)
@@ -372,6 +427,13 @@ elseif command == "set" then
   local value = parseMandatoryParameter(arguments, "value")
 
   setUciValue(config, section, option, value)
+elseif command == "set_list" then
+  local config = parseMandatoryParameter(arguments, "config")
+  local section = parseOptionalParameter(arguments, "section")
+  local option = parseMandatoryParameter(arguments, "option")
+  local value = parseMandatoryParameter(arguments, "value")
+
+  setUciList(config, section, option, split(value, ","))
 elseif command == "commit" then
   local config = parseMandatoryParameter(arguments, "config")
   uci:commit(config)

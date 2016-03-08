@@ -411,6 +411,55 @@ function setUciList(config, section, option, newValue)
 end
 
 
+function areEqual(firstValue, secondValue)
+  local areEqual = true
+  if firstValue then
+    if secondValue then
+      local newObjectType = type(secondValue)
+      if newObjectType == type(firstValue) then
+        if newObjectType == "table" then
+          for k, v in pairs(secondValue) do
+            if not areEqual(firstValue[k], v) then
+              areEqual = false
+              break
+            end
+          end
+        else
+          areEqual = firstValue == secondValue
+        end
+      else
+        areEqual = false
+      end
+    else
+      areEqual = false
+    end
+  else
+    if not secondValue then
+      areEqual = true
+    else
+      areEqual = false
+    end
+  end
+
+  return areEqual
+end
+
+
+function setUciObject(config, section, newValue)
+  local oldObject = uci:get(config, section)
+  print(json.stringify(oldObject))
+
+  if oldValue and areEqual(oldValue, newValue) then
+    exitUnchanged()
+  else
+    uci:set(config, section, newValue)
+    uci:save(config)
+
+    exitChanged()
+  end
+end
+
+
 local arguments = getArgumentParser().parse(arg)
 local command = parseMandatoryParameter(arguments, "command")
 
@@ -442,6 +491,13 @@ elseif command == "set_list" then
   local value = parseMandatoryParameter(arguments, "value")
 
   setUciList(config, section, option, split(value, ","))
+elseif command == "set_object" then
+  local config = parseMandatoryParameter(arguments, "config")
+  local section = parseOptionalParameter(arguments, "section")
+  local option = parseMandatoryParameter(arguments, "option")
+  local value = parseMandatoryParameter(arguments, "value")
+
+  setUciObject(config, section, option, value)
 elseif command == "commit" then
   local config = parseMandatoryParameter(arguments, "config")
   uci:commit(config)

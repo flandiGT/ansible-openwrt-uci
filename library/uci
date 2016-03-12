@@ -165,7 +165,8 @@ function split(inputstr, sep)
   if sep == nil then
     sep = "%s"
   end
-  local t={} ; i=1
+  local t={}
+  local i=1
   for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
     t[i] = str
     i = i + 1
@@ -207,7 +208,7 @@ function getArgumentParser()
      return string.sub(String,1,string.len(Start))==Start
   end
 
-  local parser = nil
+  local parser
   if string.starts(arg[0], "/root/.ansible/tmp") then
     parser = createAnsibleArgumentParser()
   else
@@ -284,7 +285,7 @@ end
 
 
 function parseOptionalParameter(arguments, name)
-  local argumentValue = nil
+  local argumentValue
 
   for k, v in pairs(arguments) do
     if k > 0 then
@@ -311,7 +312,7 @@ end
 
 
 function getUciSection(config, sectionType)
-  local section = nil
+  local section
 
   uci:foreach(config, sectionType, function(sectionObject) section = sectionObject end)
 
@@ -320,7 +321,8 @@ end
 
 
 function getUciValue(config, section, option)
-  local value = nil
+  local value
+
   if section then
     value = uci:get(config, section, option)
   else
@@ -477,11 +479,10 @@ elseif command == "set" then
   local value = parseMandatoryParameter(arguments, "value")
 
   local section = parseOptionalParameter(arguments, "section")
-  local type = nil
   if section then
     setUciValue(config, section, option, value)
   else
-    type = parseMandatoryParameter(arguments, "type")
+    local type = parseMandatoryParameter(arguments, "type")
     setUciTypeValue(config, type, option, value)
   end
 elseif command == "set_list" then

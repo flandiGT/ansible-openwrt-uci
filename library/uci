@@ -205,7 +205,7 @@ end
 
 function getArgumentParser()
   function string.starts(String,Start)
-     return string.sub(String,1,string.len(Start))==Start
+    return string.sub(String,1,string.len(Start))==Start
   end
 
   local parser
@@ -320,6 +320,21 @@ function getUciSection(config, sectionType)
 end
 
 
+function getUciSectionByIndex(config, sectionType, index)
+  local section
+  local counter = 0
+
+  uci:foreach(config, sectionType, function(sectionObject)
+    if counter == index then
+      section = sectionObject
+    end
+    counter = counter + 1
+  end)
+
+  return section
+end
+
+
 function getUciValue(config, section, option)
   local value
 
@@ -339,11 +354,17 @@ function getSectionName(config, sectionType)
 end
 
 
+function getSectionNameByIndex(config, sectionType, index)
+  local uciSection = getUciSectionByIndex(config, sectionType, index)
+  return uciSection[".name"]
+end
+
+
 function setUciValue(config, section, option, newValue)
   local oldValue = getUciValue(config, section, option)
 
   if oldValue and oldValue == newValue then
-      exitUnchanged()
+    exitUnchanged()
   else
     uci:set(config, section, option, newValue)
     uci:save(config)
@@ -462,6 +483,18 @@ function setUciObject(config, section, newValue)
 end
 
 
+function setUciTypeObject(config, type, newValue)
+  local section = getSectionName(config, type)
+  setUciObject(config, section, newValue)
+end
+
+
+function setUciTypeListObjectValue(config, type, index, option, newValue)
+  local section = getSectionNameByIndex(config, type, index)
+  setUciValue(config, section, option, newValue)
+end
+
+
 local arguments = getArgumentParser().parse(arg)
 local command = parseMandatoryParameter(arguments, "command")
 
@@ -492,13 +525,14 @@ elseif command == "set_list" then
   local value = parseMandatoryParameter(arguments, "value")
 
   setUciList(config, section, option, split(value, ","))
-elseif command == "set_object" then
+elseif command == "set_list_object_value" then
   local config = parseMandatoryParameter(arguments, "config")
-  local section = parseOptionalParameter(arguments, "section")
+  local type = parseMandatoryParameter(arguments, "type")
+  local index = parseMandatoryParameter(arguments, "index")
   local option = parseMandatoryParameter(arguments, "option")
   local value = parseMandatoryParameter(arguments, "value")
 
-  setUciObject(config, section, option, value)
+  setUciTypeListObjectValue(config, type, tonumber(index), option, value)
 elseif command == "commit" then
   local config = parseMandatoryParameter(arguments, "config")
   uci:commit(config)

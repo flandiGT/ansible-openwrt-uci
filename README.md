@@ -24,6 +24,11 @@ Set values as list:
 uci: command=set_list config={{config}} (section={{section}} | type={{type}}) option={{option}} value={{values|comma separated}}
 ```
 
+Set object value in list:
+```
+uci: command=set_list_object_value config={{config}} type={{type}} index={{index}} option={{option}} value={{value}}
+```
+
 Commit
 ------
 

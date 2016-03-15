@@ -356,7 +356,12 @@ end
 
 function getSectionNameByIndex(config, sectionType, index)
   local uciSection = getUciSectionByIndex(config, sectionType, index)
-  return uciSection[".name"]
+
+  if uciSection then
+    return uciSection[".name"]
+  else
+    return nil
+  end
 end
 
 
@@ -470,7 +475,6 @@ end
 
 function setUciObject(config, section, newValue)
   local oldObject = uci:get(config, section)
-  print(json.stringify(oldObject))
 
   if oldValue and areEqual(oldValue, newValue) then
     exitUnchanged()
@@ -491,6 +495,9 @@ end
 
 function setUciTypeListObjectValue(config, type, index, option, newValue)
   local section = getSectionNameByIndex(config, type, index)
+  if not section then
+    section = uci:add(config, type)
+  end
   setUciValue(config, section, option, newValue)
 end
 

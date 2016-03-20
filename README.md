@@ -29,6 +29,16 @@ Set object value in list:
 uci: command=set_list_object_value config={{config}} type={{type}} index={{index}} option={{option}} value={{value}}
 ```
 
+Delete a value:
+```
+uci: command=delete config={{config}} (section={{section}} | type={{type}}) option={{option}}
+```
+
+Delete object value in list:
+```
+uci: command=delete_list_object_value config={{config}} type={{type}} index={{index}} option={{option}}
+```
+
 Commit
 ------
 

@@ -531,6 +531,15 @@ function deleteUciTypeValue(config, type, option)
 end
 
 
+function deleteUciTypeListObjectValue(config, type, index, option)
+  local section = getSectionNameByIndex(config, type, index)
+  if not section then
+    exitUnchanged()
+  end
+  deleteUciValue(config, section, option)
+end
+
+
 local arguments = getArgumentParser().parse(arg)
 local command = parseMandatoryParameter(arguments, "command")
 
@@ -588,6 +597,13 @@ elseif command == "delete" then
     local type = parseMandatoryParameter(arguments, "type")
     deleteUciTypeValue(config, type, option)
   end
+elseif command == "delete_list_object_value" then
+  local config = parseMandatoryParameter(arguments, "config")
+  local type = parseMandatoryParameter(arguments, "type")
+  local index = parseMandatoryParameter(arguments, "index")
+  local option = parseMandatoryParameter(arguments, "option")
+
+  deleteUciTypeListObjectValue(config, type, tonumber(index), option)
 elseif command == "commit" then
   local config = parseMandatoryParameter(arguments, "config")
   uci:commit(config)

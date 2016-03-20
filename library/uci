@@ -511,6 +511,26 @@ function setUciTypeListObjectValueAsList(config, type, index, option, newValue)
 end
 
 
+function deleteUciValue(config, section, option)
+  local oldValue = getUciValue(config, section, option)
+
+  if not oldValue then
+    exitUnchanged()
+  else
+    uci:delete(config, section, option)
+    uci:save(config)
+
+    exitChanged()
+  end
+end
+
+
+function deleteUciTypeValue(config, type, option)
+  local section = getSectionName(config, type)
+  deleteUciValue(config, section, option)
+end
+
+
 local arguments = getArgumentParser().parse(arg)
 local command = parseMandatoryParameter(arguments, "command")
 
@@ -557,6 +577,17 @@ elseif command == "set_list_object_value_as_list" then
   local value = parseMandatoryParameter(arguments, "value")
 
   setUciTypeListObjectValueAsList(config, type, tonumber(index), option, split(value, ","))
+elseif command == "delete" then
+  local config = parseMandatoryParameter(arguments, "config")
+  local option = parseMandatoryParameter(arguments, "option")
+
+  local section = parseOptionalParameter(arguments, "section")
+  if section then
+    deleteUciValue(config, section, option)
+  else
+    local type = parseMandatoryParameter(arguments, "type")
+    deleteUciTypeValue(config, type, option)
+  end
 elseif command == "commit" then
   local config = parseMandatoryParameter(arguments, "config")
   uci:commit(config)

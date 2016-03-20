@@ -502,6 +502,15 @@ function setUciTypeListObjectValue(config, type, index, option, newValue)
 end
 
 
+function setUciTypeListObjectValueAsList(config, type, index, option, newValue)
+  local section = getSectionNameByIndex(config, type, index)
+  if not section then
+    section = uci:add(config, type)
+  end
+  setUciList(config, section, option, newValue)
+end
+
+
 local arguments = getArgumentParser().parse(arg)
 local command = parseMandatoryParameter(arguments, "command")
 
@@ -540,6 +549,14 @@ elseif command == "set_list_object_value" then
   local value = parseMandatoryParameter(arguments, "value")
 
   setUciTypeListObjectValue(config, type, tonumber(index), option, value)
+elseif command == "set_list_object_value_as_list" then
+  local config = parseMandatoryParameter(arguments, "config")
+  local type = parseMandatoryParameter(arguments, "type")
+  local index = parseMandatoryParameter(arguments, "index")
+  local option = parseMandatoryParameter(arguments, "option")
+  local value = parseMandatoryParameter(arguments, "value")
+
+  setUciTypeListObjectValueAsList(config, type, tonumber(index), option, split(value, ","))
 elseif command == "commit" then
   local config = parseMandatoryParameter(arguments, "config")
   uci:commit(config)

@@ -487,6 +487,18 @@ function setUciObject(config, section, newValue)
 end
 
 
+function addUciSection(config, section, type)
+  local sectionObject = uci:get(config, section)
+
+  if not sectionObject then
+    sectionObject = uci:set(config, section, type)
+    uci:save(config)
+  end
+
+  return sectionObject
+end
+
+
 function setUciTypeObject(config, type, newValue)
   local section = getSectionName(config, type)
   setUciObject(config, section, newValue)
@@ -558,6 +570,8 @@ elseif command == "set" then
 
   local section = parseOptionalParameter(arguments, "section")
   if section then
+    local type = parseOptionalParameter(arguments, "type")
+    addUciSection(config, section, type)
     setUciValue(config, section, option, value)
   else
     local type = parseMandatoryParameter(arguments, "type")

@@ -229,11 +229,6 @@ function exitFailed(message)
 end
 
 
-debug = function (object)
-  print(json.stringify(object))
-end
-
-
 function exitChanged(message)
   local changed = {
     changed = true,
@@ -311,80 +306,6 @@ function parseMandatoryParameter(arguments, name)
 end
 
 
-function getUciSection(config, sectionType)
-  local section
-
-  uci:foreach(config, sectionType, function(sectionObject) section = sectionObject end)
-
-  return section
-end
-
-
-function getUciSectionByIndex(config, sectionType, index)
-  local section
-  local counter = 0
-
-  uci:foreach(config, sectionType, function(sectionObject)
-    if counter == index then
-      section = sectionObject
-    end
-    counter = counter + 1
-  end)
-
-  return section
-end
-
-
-function getUciValue(config, section, option)
-  local value
-
-  if section then
-    value = uci:get(config, section, option)
-  else
-    uci:foreach(config, config, function(sectionObject) value = sectionObject[option] end)
-  end
-
-  return value
-end
-
-
-function getSectionName(config, sectionType)
-  local uciSection = getUciSection(config, sectionType)
-  return uciSection[".name"]
-end
-
-
-function getSectionNameByIndex(config, sectionType, index)
-  local uciSection = getUciSectionByIndex(config, sectionType, index)
-
-  if uciSection then
-    return uciSection[".name"]
-  else
-    return nil
-  end
-end
-
-
-function setUciValue(config, section, option, newValue)
-  local oldValue = getUciValue(config, section, option)
-
-  if oldValue and oldValue == newValue then
-    exitUnchanged()
-  else
-    uci:set(config, section, option, newValue)
-    uci:save(config)
-
-    exitChanged()
-  end
-end
-
-
-function setUciTypeValue(config, type, option, newValue)
-  local section = getSectionName(config, type)
-  setUciValue(config, section, option, newValue)
-end
-
-
 function Set (list)
   local set = {}
   for _, l in ipairs(list) do set[l] = true end
@@ -418,24 +339,6 @@ function areListsEqual(first, second)
   end
 
   return true
-end
-
-
-function setUciList(config, section, option, newValue)
-  if not section then
-    section = getSectionName(config, config)
-  end
-
-  local oldValue = getUciValue(config, section, option)
-
-  if oldValue and areListsEqual(oldValue, newValue) then
-    exitUnchanged()
-  else
-    uci:set(config, section, option, newValue)
-    uci:save(config)
-
-    exitChanged()
-  end
 end
 
 
@@ -473,82 +376,151 @@ function areEqual(firstValue, secondValue)
 end
 
 
-function setUciObject(config, section, newValue)
-  local oldObject = uci:get(config, section)
+function UciSection(configName, sectionName, sectionType, sectionIndex)
+  local uciSection = {}
+  local readSection
+  local readSectionName = sectionName
 
-  if oldValue and areEqual(oldValue, newValue) then
-    exitUnchanged()
-  else
-    uci:set(config, section, newValue)
-    uci:save(config)
 
-    exitChanged()
+  local function read()
+    if not readSection then
+      if sectionName then
+        readSection = uci:get(configName, sectionName)
+      else
+        if sectionIndex then
+          local counter = 0
+
+          uci:foreach(configName, sectionType, function(sectionObject)
+            if counter == sectionIndex then
+              readSection = sectionObject
+            end
+            counter = counter + 1
+          end)
+        else
+          uci:foreach(configName, sectionType, function(sectionObject) readSection = sectionObject end)
+        end
+      end
+    end
+
+    return readSection
   end
-end
 
 
-function addUciSection(config, section, type)
-  local sectionObject = uci:get(config, section)
+  local function readName()
+    if not readSectionName then
+      local section = read()
+      readSectionName = section[".name"]
+    end
 
-  if not sectionObject then
-    sectionObject = uci:set(config, section, type)
-    uci:save(config)
+    return readSectionName
   end
 
-  return sectionObject
-end
 
-
-function setUciTypeObject(config, type, newValue)
-  local section = getSectionName(config, type)
-  setUciObject(config, section, newValue)
-end
-
-
-function setUciTypeListObjectValue(config, type, index, option, newValue)
-  local section = getSectionNameByIndex(config, type, index)
-  if not section then
-    section = uci:add(config, type)
+  local function get(optionName)
+    local sectionName = readName()
+    return uci:get(configName, sectionName, optionName)
   end
-  setUciValue(config, section, option, newValue)
-end
 
 
-function setUciTypeListObjectValueAsList(config, type, index, option, newValue)
-  local section = getSectionNameByIndex(config, type, index)
-  if not section then
-    section = uci:add(config, type)
+  function uciSection.get(optionName)
+    return get(optionName)
   end
-  setUciList(config, section, option, newValue)
-end
 
 
-function deleteUciValue(config, section, option)
-  local oldValue = getUciValue(config, section, option)
+  function uciSection.set(optionName, value)
+    local hasChanged
+    local oldValue = get(optionName)
 
-  if not oldValue then
-    exitUnchanged()
-  else
-    uci:delete(config, section, option)
-    uci:save(config)
+    if oldValue and oldValue == value then
+      hasChanged = false
+    else
+      local sectionName = readName()
 
-    exitChanged()
+      uci:set(configName, sectionName, optionName, value)
+      uci:save(configName)
+
+      hasChanged = true
+    end
+
+    return hasChanged
   end
-end
 
 
-function deleteUciTypeValue(config, type, option)
-  local section = getSectionName(config, type)
-  deleteUciValue(config, section, option)
-end
+  function uciSection.setList(optionName, value)
+    local hasChanged
+    local oldValue = get(optionName)
 
+    if oldValue and areListsEqual(oldValue, value) then
+      hasChanged = false
+    else
+      local sectionName = readName()
 
-function deleteUciTypeListObjectValue(config, type, index, option)
-  local section = getSectionNameByIndex(config, type, index)
-  if not section then
-    exitUnchanged()
+      uci:set(configName, sectionName, optionName, value)
+      uci:save(configName)
+
+      hasChanged = true
+    end
+
+    return hasChanged
   end
-  deleteUciValue(config, section, option)
+
+
+  function uciSection.delete(optionName)
+    local hasBeenDeleted
+    local oldValue = get(optionName)
+
+    if not oldValue then
+      hasBeenDeleted = false
+    else
+      local sectionName = readName()
+
+      uci:delete(configName, sectionName, optionName)
+      uci:save(configName)
+
+      hasBeenDeleted = true
+    end
+
+    return hasBeenDeleted
+  end
+
+
+  function uciSection.exists()
+    local section = read()
+    return section ~= nil
+  end
+
+
+  function uciSection.create()
+    if sectionName then
+      readSection = uci:set(configName, sectionName, sectionType)
+    else
+      readSection = uci:add(configName, sectionType)
+      sectionName = readSection[".name"]
+    end
+
+    uci:save(configName)
+  end
+
+
+  return uciSection
+end
+
+
+function UciConfig(configName)
+  local uciConfig ={}
+
+
+  function uciConfig.section(sectionName, sectionType, sectionIndex)
+    return UciSection(configName, sectionName, sectionType, sectionIndex)
+  end
+
+
+  function uciConfig.commit()
+    uci:commit(configName)
+  end
+
+
+  return uciConfig
 end
 
 
@@ -560,22 +532,32 @@ if command == "get" then
   local section = parseOptionalParameter(arguments, "section")
   local option = parseMandatoryParameter(arguments, "option")
 
-  local value = getUciValue(config, section, option)
+  local uciSection = UciConfig(config).section(section)
 
-  exitUnchanged(value)
+  exitUnchanged(uciSection.get(option))
 elseif command == "set" then
   local config = parseMandatoryParameter(arguments, "config")
   local option = parseMandatoryParameter(arguments, "option")
   local value = parseMandatoryParameter(arguments, "value")
 
   local section = parseOptionalParameter(arguments, "section")
+  local uciSection
   if section then
     local type = parseOptionalParameter(arguments, "type")
-    addUciSection(config, section, type)
-    setUciValue(config, section, option, value)
+    uciSection = UciConfig(config).section(section, type)
   else
     local type = parseMandatoryParameter(arguments, "type")
-    setUciTypeValue(config, type, option, value)
+    uciSection = UciConfig(config).section(nil, type)
+  end
+
+  if not uciSection.exists() then
+    uciSection.create()
+  end
+
+  if uciSection.set(option, value) then
+    exitChanged()
+  else
+    exitUnchanged()
   end
 elseif command == "set_list" then
   local config = parseMandatoryParameter(arguments, "config")
@@ -583,7 +565,16 @@ elseif command == "set_list" then
   local option = parseMandatoryParameter(arguments, "option")
   local value = parseMandatoryParameter(arguments, "value")
 
-  setUciList(config, section, option, split(value, ","))
+  local uciSection = UciConfig(config).section(section)
+  if not uciSection.exists() then
+    uciSection.create()
+  end
+
+  if uciSection.setList(option, split(value, ",")) then
+    exitChanged()
+  else
+    exitUnchanged()
+  end
 elseif command == "set_list_object_value" then
   local config = parseMandatoryParameter(arguments, "config")
   local type = parseMandatoryParameter(arguments, "type")
@@ -591,7 +582,16 @@ elseif command == "set_list_object_value" then
   local option = parseMandatoryParameter(arguments, "option")
   local value = parseMandatoryParameter(arguments, "value")
 
-  setUciTypeListObjectValue(config, type, tonumber(index), option, value)
+  local uciSection = UciConfig(config).section(nil, type, tonumber(index))
+  if not uciSection.exists() then
+    uciSection.create()
+  end
+
+  if uciSection.set(option, value) then
+    exitChanged()
+  else
+    exitUnchanged()
+  end
 elseif command == "set_list_object_value_as_list" then
   local config = parseMandatoryParameter(arguments, "config")
   local type = parseMandatoryParameter(arguments, "type")
@@ -599,17 +599,34 @@ elseif command == "set_list_object_value_as_list" then
   local option = parseMandatoryParameter(arguments, "option")
   local value = parseMandatoryParameter(arguments, "value")
 
-  setUciTypeListObjectValueAsList(config, type, tonumber(index), option, split(value, ","))
+  local uciSection = UciConfig(config).section(nil, type, tonumber(index))
+  if not uciSection.exists() then
+    uciSection.create()
+  end
+
+  if uciSection.set(option, split(value, ",")) then
+    exitChanged()
+  else
+    exitUnchanged()
+  end
 elseif command == "delete" then
   local config = parseMandatoryParameter(arguments, "config")
   local option = parseMandatoryParameter(arguments, "option")
-
   local section = parseOptionalParameter(arguments, "section")
+
+  local type
   if section then
-    deleteUciValue(config, section, option)
+    type = parseOptionalParameter(arguments, "type")
   else
-    local type = parseMandatoryParameter(arguments, "type")
-    deleteUciTypeValue(config, type, option)
+    type = parseMandatoryParameter(arguments, "type")
+  end
+
+  local uciSection = UciConfig(config).section(section, type)
+
+  if uciSection.delete(option) then
+    exitChanged()
+  else
+    exitUnchanged()
   end
 elseif command == "delete_list_object_value" then
   local config = parseMandatoryParameter(arguments, "config")
@@ -617,7 +634,13 @@ elseif command == "delete_list_object_value" then
   local index = parseMandatoryParameter(arguments, "index")
   local option = parseMandatoryParameter(arguments, "option")
 
-  deleteUciTypeListObjectValue(config, type, tonumber(index), option)
+  local uciSection = UciConfig(config).section(nil, type, tonumber(index))
+
+  if uciSection.delete(option) then
+    exitChanged()
+  else
+    exitUnchanged()
+  end
 elseif command == "commit" then
   local config = parseMandatoryParameter(arguments, "config")
   uci:commit(config)

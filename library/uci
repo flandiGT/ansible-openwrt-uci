@@ -175,50 +175,6 @@ function split(inputstr, sep)
 end
 
 
-function createAnsibleArgumentParser()
-  local fs   = require('nixio.fs')
-  local parser = {}
-
-  function parser.parse(arguments)
-    local argumentsLine = fs.readfile(arg[1])
-
-    argumentsLine = string.gsub(argumentsLine, "\\", "")
-    argumentsLine = string.gsub(argumentsLine, "\"", "")
-
-    return split(argumentsLine, " ")
-  end
-
-  return parser
-end
-
-
-function createBashArgumentParser()
-  local parser = {}
-
-  function parser.parse(arguments)
-    return arguments
-  end
-
-  return parser
-end
-
-
-function getArgumentParser()
-  function string.starts(String,Start)
-    return string.sub(String,1,string.len(Start))==Start
-  end
-
-  local parser
-  if string.starts(arg[0], "/root/.ansible/tmp") then
-    parser = createAnsibleArgumentParser()
-  else
-    parser = createBashArgumentParser()
-  end
-
-  return parser
-end
-
-
 function exitFailed(message)
   local failed = {
     failed = true,
@@ -257,52 +213,6 @@ function exitUnchanged(message)
   end
 
   os.exit(0)
-end
-
-
-function tryToParseOptionalParameter(argumentLine, name)
-  local find = name .. "="
-  local length = string.len(find)
-  local start_index = string.find(argumentLine, find)
-
-  if not start_index then
-    return nil
-  end
-
-  local last_index = string.find(argumentLine, " ", start_index)
-
-  if not last_index then
-    last_index = string.len(argumentLine)
-  end
-
-  return string.sub(argumentLine, start_index + length, last_index)
-end
-
-
-function parseOptionalParameter(arguments, name)
-  local argumentValue
-
-  for k, v in pairs(arguments) do
-    if k > 0 then
-      argumentValue = tryToParseOptionalParameter(v, name)
-      if argumentValue then
-        return argumentValue
-      end
-    end
-  end
-
-  return argumentValue
-end
-
-
-function parseMandatoryParameter(arguments, name)
-  local parameter = parseOptionalParameter(arguments, name)
-
-  if not parameter then
-    exitFailed("mandatory argument or value '" .. name .. "' is missing")
-  end
-
-  return parameter
 end
 
 
@@ -507,7 +417,7 @@ end
 
 
 function UciConfig(configName)
-  local uciConfig ={}
+  local uciConfig = {}
 
 
   function uciConfig.section(sectionName, sectionType, sectionIndex)
@@ -524,29 +434,135 @@ function UciConfig(configName)
 end
 
 
-local arguments = getArgumentParser().parse(arg)
-local command = parseMandatoryParameter(arguments, "command")
+function Arguments(args)
+  local object = {}
+
+
+  local function createAnsibleArgumentParser()
+    local fs = require('nixio.fs')
+    local parser = {}
+
+    function parser.parse(arguments)
+      local argumentsLine = fs.readfile(args[1])
+
+      argumentsLine = string.gsub(argumentsLine, "\\", "")
+      argumentsLine = string.gsub(argumentsLine, "\"", "")
+
+      return split(argumentsLine, " ")
+    end
+
+    return parser
+  end
+
+
+  local function createBashArgumentParser()
+    local parser = {}
+
+    function parser.parse(arguments)
+      return arguments
+    end
+
+    return parser
+  end
+
+
+  local function getArgumentParser()
+    function string.starts(String, Start)
+      return string.sub(String, 1, string.len(Start)) == Start
+    end
+
+    local parser
+    if string.starts(args[0], "/root/.ansible/tmp") then
+      parser = createAnsibleArgumentParser()
+    else
+      parser = createBashArgumentParser()
+    end
+
+    return parser
+  end
+
+
+  local arguments = getArgumentParser().parse(args)
+
+
+  local function tryToParseOptionalParameter(arguments, name)
+    local find = name .. "="
+    local length = string.len(find)
+    local start_index = string.find(arguments, find)
+
+    if not start_index then
+      return nil
+    end
+
+    local last_index = string.find(arguments, " ", start_index)
+
+    if not last_index then
+      last_index = string.len(arguments)
+    end
+
+    return string.sub(arguments, start_index + length, last_index)
+  end
+
+
+  local function parseOptionalParameter(name)
+    local argumentValue
+
+    for k, v in pairs(arguments) do
+      if k > 0 then
+        argumentValue = tryToParseOptionalParameter(v, name)
+        if argumentValue then
+          return argumentValue
+        end
+      end
+    end
+
+    return argumentValue
+  end
+
+
+  function object.getOptional(argumentName)
+    return parseOptionalParameter(argumentName)
+  end
+
+
+  function object.getMandatory(argumentName)
+    local parameter = parseOptionalParameter(argumentName)
+
+    if not parameter then
+      exitFailed("mandatory argument or value '" .. argumentName .. "' is missing")
+    end
+
+    return parameter
+  end
+
+
+  return object
+end
+
+
+local arguments = Arguments(arg)
+local command = arguments.getMandatory("command")
 
 if command == "get" then
-  local config = parseMandatoryParameter(arguments, "config")
-  local section = parseOptionalParameter(arguments, "section")
-  local option = parseMandatoryParameter(arguments, "option")
+  local config = arguments.getMandatory("config")
+  local section = arguments.getOptional("section")
+  local option = arguments.getMandatory("option")
 
   local uciSection = UciConfig(config).section(section)
 
   exitUnchanged(uciSection.get(option))
 elseif command == "set" then
-  local config = parseMandatoryParameter(arguments, "config")
-  local option = parseMandatoryParameter(arguments, "option")
-  local value = parseMandatoryParameter(arguments, "value")
+  local config = arguments.getMandatory("config")
+  local option = arguments.getMandatory("option")
+  local value = arguments.getMandatory("value")
 
-  local section = parseOptionalParameter(arguments, "section")
+  local section = arguments.getOptional("section")
   local uciSection
   if section then
-    local type = parseOptionalParameter(arguments, "type")
+    local type = arguments.getOptional("type")
     uciSection = UciConfig(config).section(section, type)
   else
-    local type = parseMandatoryParameter(arguments, "type")
+    local type = arguments.getMandatory("type")
     uciSection = UciConfig(config).section(nil, type)
   end
 
@@ -560,10 +576,10 @@ elseif command == "set" then
     exitUnchanged()
   end
 elseif command == "set_list" then
-  local config = parseMandatoryParameter(arguments, "config")
-  local section = parseOptionalParameter(arguments, "section")
-  local option = parseMandatoryParameter(arguments, "option")
-  local value = parseMandatoryParameter(arguments, "value")
+  local config = arguments.getMandatory("config")
+  local section = arguments.getOptional("section")
+  local option = arguments.getMandatory("option")
+  local value = arguments.getMandatory("value")
 
   local uciSection = UciConfig(config).section(section)
   if not uciSection.exists() then
@@ -576,11 +592,11 @@ elseif command == "set_list" then
     exitUnchanged()
   end
 elseif command == "set_list_object_value" then
-  local config = parseMandatoryParameter(arguments, "config")
-  local type = parseMandatoryParameter(arguments, "type")
-  local index = parseMandatoryParameter(arguments, "index")
-  local option = parseMandatoryParameter(arguments, "option")
-  local value = parseMandatoryParameter(arguments, "value")
+  local config = arguments.getMandatory("config")
+  local type = arguments.getMandatory("type")
+  local index = arguments.getMandatory("index")
+  local option = arguments.getMandatory("option")
+  local value = arguments.getMandatory("value")
 
   local uciSection = UciConfig(config).section(nil, type, tonumber(index))
   if not uciSection.exists() then
@@ -593,11 +609,11 @@ elseif command == "set_list_object_value" then
     exitUnchanged()
   end
 elseif command == "set_list_object_value_as_list" then
-  local config = parseMandatoryParameter(arguments, "config")
-  local type = parseMandatoryParameter(arguments, "type")
-  local index = parseMandatoryParameter(arguments, "index")
-  local option = parseMandatoryParameter(arguments, "option")
-  local value = parseMandatoryParameter(arguments, "value")
+  local config = arguments.getMandatory("config")
+  local type = arguments.getMandatory("type")
+  local index = arguments.getMandatory("index")
+  local option = arguments.getMandatory("option")
+  local value = arguments.getMandatory("value")
 
   local uciSection = UciConfig(config).section(nil, type, tonumber(index))
   if not uciSection.exists() then
@@ -610,15 +626,15 @@ elseif command == "set_list_object_value_as_list" then
     exitUnchanged()
   end
 elseif command == "delete" then
-  local config = parseMandatoryParameter(arguments, "config")
-  local option = parseMandatoryParameter(arguments, "option")
-  local section = parseOptionalParameter(arguments, "section")
+  local config = arguments.getMandatory("config")
+  local option = arguments.getMandatory("option")
+  local section = arguments.getOptional("section")
 
   local type
   if section then
-    type = parseOptionalParameter(arguments, "type")
+    type = arguments.getOptional("type")
   else
-    type = parseMandatoryParameter(arguments, "type")
+    type = arguments.getMandatory("type")
   end
 
   local uciSection = UciConfig(config).section(section, type)
@@ -629,10 +645,10 @@ elseif command == "delete" then
     exitUnchanged()
   end
 elseif command == "delete_list_object_value" then
-  local config = parseMandatoryParameter(arguments, "config")
-  local type = parseMandatoryParameter(arguments, "type")
-  local index = parseMandatoryParameter(arguments, "index")
-  local option = parseMandatoryParameter(arguments, "option")
+  local config = arguments.getMandatory("config")
+  local type = arguments.getMandatory("type")
+  local index = arguments.getMandatory("index")
+  local option = arguments.getMandatory("option")
 
   local uciSection = UciConfig(config).section(nil, type, tonumber(index))
 
@@ -642,12 +658,12 @@ elseif command == "delete_list_object_value" then
     exitUnchanged()
   end
 elseif command == "commit" then
-  local config = parseMandatoryParameter(arguments, "config")
+  local config = arguments.getMandatory("config")
   uci:commit(config)
 
   exitChanged()
 elseif command == "get_all" then
-  local config = parseMandatoryParameter(arguments, "config")
+  local config = arguments.getMandatory("config")
   local values = uci:get_all(config)
 
   exitUnchanged(values)

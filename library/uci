@@ -306,8 +306,6 @@ function UciSection(configName, sectionName, sectionType, sectionIndex)
             end
             counter = counter + 1
           end)
-        else
-          uci:foreach(configName, sectionType, function(sectionObject) readSection = sectionObject end)
         end
       end
     end
@@ -543,28 +541,47 @@ end
 local arguments = Arguments(arg)
 local command = arguments.getMandatory("command")
 
-if command == "get" then
+
+function getSection()
+  local uciSection
+
   local config = arguments.getMandatory("config")
   local section = arguments.getOptional("section")
+
+  if section then
+    local type = arguments.getOptional("type")
+    local indexAsText = arguments.getOptional("index")
+
+    local index
+    if indexAsText then
+      index = tonumber(indexAsText)
+    else
+      index = nil
+    end
+
+    uciSection = UciConfig(config).section(section, type, index)
+  else
+    local type = arguments.getMandatory("type")
+    local indexAsText = arguments.getMandatory("index")
+
+    uciSection = UciConfig(config).section(nil, type, tonumber(indexAsText))
+  end
+
+  return uciSection
+end
+
+
+if command == "get" then
   local option = arguments.getMandatory("option")
 
-  local uciSection = UciConfig(config).section(section)
+  local uciSection = getSection()
 
   exitUnchanged(uciSection.get(option))
 elseif command == "set" then
-  local config = arguments.getMandatory("config")
   local option = arguments.getMandatory("option")
   local value = arguments.getMandatory("value")
 
-  local section = arguments.getOptional("section")
-  local uciSection
-  if section then
-    local type = arguments.getOptional("type")
-    uciSection = UciConfig(config).section(section, type)
-  else
-    local type = arguments.getMandatory("type")
-    uciSection = UciConfig(config).section(nil, type)
-  end
+  local uciSection = getSection()
 
   if not uciSection.exists() then
     uciSection.create()
@@ -576,12 +593,10 @@ elseif command == "set" then
     exitUnchanged()
   end
 elseif command == "set_list" then
-  local config = arguments.getMandatory("config")
-  local section = arguments.getOptional("section")
   local option = arguments.getMandatory("option")
   local value = arguments.getMandatory("value")
 
-  local uciSection = UciConfig(config).section(section)
+  local uciSection = getSection()
   if not uciSection.exists() then
     uciSection.create()
   end
@@ -591,66 +606,10 @@ elseif command == "set_list" then
   else
     exitUnchanged()
   end
-elseif command == "set_list_object_value" then
-  local config = arguments.getMandatory("config")
-  local type = arguments.getMandatory("type")
-  local index = arguments.getMandatory("index")
-  local option = arguments.getMandatory("option")
-  local value = arguments.getMandatory("value")
-
-  local uciSection = UciConfig(config).section(nil, type, tonumber(index))
-  if not uciSection.exists() then
-    uciSection.create()
-  end
-
-  if uciSection.set(option, value) then
-    exitChanged()
-  else
-    exitUnchanged()
-  end
-elseif command == "set_list_object_value_as_list" then
-  local config = arguments.getMandatory("config")
-  local type = arguments.getMandatory("type")
-  local index = arguments.getMandatory("index")
-  local option = arguments.getMandatory("option")
-  local value = arguments.getMandatory("value")
-
-  local uciSection = UciConfig(config).section(nil, type, tonumber(index))
-  if not uciSection.exists() then
-    uciSection.create()
-  end
-
-  if uciSection.set(option, split(value, ",")) then
-    exitChanged()
-  else
-    exitUnchanged()
-  end
 elseif command == "delete" then
-  local config = arguments.getMandatory("config")
-  local option = arguments.getMandatory("option")
-  local section = arguments.getOptional("section")
-
-  local type
-  if section then
-    type = arguments.getOptional("type")
-  else
-    type = arguments.getMandatory("type")
-  end
-
-  local uciSection = UciConfig(config).section(section, type)
-
-  if uciSection.delete(option) then
-    exitChanged()
-  else
-    exitUnchanged()
-  end
-elseif command == "delete_list_object_value" then
-  local config = arguments.getMandatory("config")
-  local type = arguments.getMandatory("type")
-  local index = arguments.getMandatory("index")
   local option = arguments.getMandatory("option")
 
-  local uciSection = UciConfig(config).section(nil, type, tonumber(index))
+  local uciSection = getSection()
 
   if uciSection.delete(option) then
     exitChanged()
@@ -659,7 +618,7 @@ elseif command == "delete_list_object_value" then
   end
 elseif command == "commit" then
   local config = arguments.getMandatory("config")
-  uci:commit(config)
+  UciConfig(config).commit()
 
   exitChanged()
 elseif command == "get_all" then

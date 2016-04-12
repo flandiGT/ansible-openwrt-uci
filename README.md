@@ -16,41 +16,36 @@ Usage
 
 Set a value:
 ```
-uci: command=set config={{config}} (section={{section}} | type={{type}}) option={{option}} value={{value}}
+uci: command=set config={{config}} section={{section}} type={{type}} index={{index}} option={{option}} value={{value}}
 ```
 
 Set values as list:
 ```
-uci: command=set_list config={{config}} (section={{section}} | type={{type}}) option={{option}} value={{values|comma separated}}
-```
-
-Set object value in list:
-```
-uci: command=set_list_object_value config={{config}} type={{type}} index={{index}} option={{option}} value={{value}}
+uci: command=set_list config={{config}} section={{section}} type={{type}} index={{index}} option={{option}} value={{values|comma separated}}
 ```
 
 Delete a value:
 ```
-uci: command=delete config={{config}} (section={{section}} | type={{type}}) option={{option}}
+uci: command=delete config={{config}} section={{section}} type={{type}} index={{index}} option={{option}}
 ```
 
-Delete object value in list:
-```
-uci: command=delete_list_object_value config={{config}} type={{type}} index={{index}} option={{option}}
-```
-
-Commit
-------
-
+Commit:
 ```
 uci: command=commit config={{config}}
 ```
 
-Supported commands in future:
------------------------------
+Options
+-------
 
-* get
-* get_all
+| parameter | required | default | choices                                                                                          | comments                                                                                                           |
+|-----------|----------|---------|--------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------|
+| command   | yes      |         | <ul><li>get</li><li>set</li><li>set_list</li><li>delete</li><li>commit</li><li>get_all</li></ul> | Specifies the UCI command                                                                                          |
+| config    | yes      |         |                                                                                                  | Specifies the UCI config. Mandatory for all commands                                                               |
+| section   | no       |         |                                                                                                  | Specifies the UCI section name. Mandatory of you want to change an option within simple elements.                  |
+| type      | no       |         |                                                                                                  | Specifies the UCI section type. Mandatory if you want to change options within array-like elements.                |
+| index     | no       |         |                                                                                                  | Specifies the index of the array-like element. Mandatory if you want to change options within array-like elements. |
+| option    | no       |         |                                                                                                  | Specifies the UCI option name within sections. Mandatory to set or delete options.                                 |
+| value     | no       |         |                                                                                                  | Specifies the value to set as section option. Mandatory when using command 'set'.                                  |
 
 See for UCI documentation:
 [http://wiki.openwrt.org/doc/uci]: http://wiki.openwrt.org/doc/uci

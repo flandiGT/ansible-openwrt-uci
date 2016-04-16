@@ -222,40 +222,48 @@ function Application()
 end
 
 
-function Set (list)
-  local set = {}
-  for _, l in ipairs(list) do set[l] = true end
-  return set
-end
+function ListUtils()
+  local listUtils = {}
 
+  local function size(list)
+    if type(list.n) == "number" then return list.n end
 
-function size(list)
-  if type(list.n) == "number" then return list.n end
+    local max = 0
+    for i, _ in pairs(list) do
+      if type(i) == "number" and i > max then max = i end
+    end
 
-  local max = 0
-  for i, _ in pairs(list) do
-    if type(i) == "number" and i > max then max = i end
+    return max
   end
 
-  return max
-end
 
-
-function areListsEqual(first, second)
-  if size(first) ~= size(second) then
-    return false
+  local function Set (list)
+    local set = {}
+    for _, l in ipairs(list) do set[l] = true end
+    return set
   end
 
-  local firstAsSet = Set(first)
 
-  for _, value in pairs(second) do
-    if not firstAsSet[value] then
+  function listUtils.areEqual(first, second)
+    if size(first) ~= size(second) then
       return false
     end
+
+    local firstAsSet = Set(first)
+
+    for _, value in pairs(second) do
+      if not firstAsSet[value] then
+        return false
+      end
+    end
+
+    return true
   end
 
-  return true
+  return listUtils
 end
+
+local ListUtils = ListUtils()
 
 
 function UciSection(configName, sectionName, sectionType, sectionIndex)
@@ -330,7 +338,7 @@ function UciSection(configName, sectionName, sectionType, sectionIndex)
     local hasChanged
     local oldValue = get(optionName)
 
-    if oldValue and areListsEqual(oldValue, value) then
+    if oldValue and ListUtils.areEqual(oldValue, value) then
       hasChanged = false
     else
       local sectionName = readName()

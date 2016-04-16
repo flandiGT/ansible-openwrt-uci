@@ -175,6 +175,9 @@ function split(inputstr, sep)
 end
 
 
+--------------------------------------------------------------------------------
+-- Application: encapsulate functions to exit in a way Ansible understands
+--------------------------------------------------------------------------------
 function Application()
   local application = {}
 
@@ -220,8 +223,12 @@ function Application()
 
   return application
 end
+--------------------------------------------------------------------------------
 
 
+--------------------------------------------------------------------------------
+-- ListUtils: encapsulate functions to estimate list equality
+--------------------------------------------------------------------------------
 function ListUtils()
   local listUtils = {}
 
@@ -262,10 +269,14 @@ function ListUtils()
 
   return listUtils
 end
+--------------------------------------------------------------------------------
 
 local ListUtils = ListUtils()
 
 
+--------------------------------------------------------------------------------
+-- UciSection: encapsulate functions to handle changes in uci sections
+--------------------------------------------------------------------------------
 function UciSection(configName, sectionName, sectionType, sectionIndex)
   local uciSection = {}
   local readSection
@@ -392,8 +403,12 @@ function UciSection(configName, sectionName, sectionType, sectionIndex)
 
   return uciSection
 end
+--------------------------------------------------------------------------------
 
 
+--------------------------------------------------------------------------------
+-- Arguments: encapsulate functions to handle optional and mandatory arguments
+--------------------------------------------------------------------------------
 function Arguments(args)
   local object = {}
 
@@ -498,6 +513,7 @@ function Arguments(args)
 
   return object
 end
+--------------------------------------------------------------------------------
 
 
 function getSection(arguments)
@@ -529,6 +545,9 @@ function getSection(arguments)
 end
 
 
+--------------------------------------------------------------------------------
+-- Main function
+--------------------------------------------------------------------------------
 function main(args)
   local arguments = Arguments(args)
   local application = Application()
@@ -604,5 +623,6 @@ function main(args)
   end
 
 end
+--------------------------------------------------------------------------------
 
 main(arg)

@@ -538,11 +538,7 @@ function Arguments(args)
 end
 
 
-local arguments = Arguments(arg)
-local command = arguments.getMandatory("command")
-
-
-function getSection()
+function getSection(arguments)
   local uciSection
 
   local config = arguments.getMandatory("config")
@@ -571,61 +567,69 @@ function getSection()
 end
 
 
-if command == "get" then
-  local option = arguments.getMandatory("option")
+function main(args)
+  local arguments = Arguments(args)
+  local command = arguments.getMandatory("command")
 
-  local uciSection = getSection()
 
-  exitUnchanged(uciSection.get(option))
-elseif command == "set" then
-  local option = arguments.getMandatory("option")
-  local value = arguments.getMandatory("value")
+  if command == "get" then
+    local option = arguments.getMandatory("option")
 
-  local uciSection = getSection()
+    local uciSection = getSection(arguments)
 
-  if not uciSection.exists() then
-    uciSection.create()
-  end
+    exitUnchanged(uciSection.get(option))
+  elseif command == "set" then
+    local option = arguments.getMandatory("option")
+    local value = arguments.getMandatory("value")
 
-  if uciSection.set(option, value) then
+    local uciSection = getSection(arguments)
+
+    if not uciSection.exists() then
+      uciSection.create()
+    end
+
+    if uciSection.set(option, value) then
+      exitChanged()
+    else
+      exitUnchanged()
+    end
+  elseif command == "set_list" then
+    local option = arguments.getMandatory("option")
+    local value = arguments.getMandatory("value")
+
+    local uciSection = getSection(arguments)
+    if not uciSection.exists() then
+      uciSection.create()
+    end
+
+    if uciSection.setList(option, split(value, ",")) then
+      exitChanged()
+    else
+      exitUnchanged()
+    end
+  elseif command == "delete" then
+    local option = arguments.getMandatory("option")
+
+    local uciSection = getSection(arguments)
+
+    if uciSection.delete(option) then
+      exitChanged()
+    else
+      exitUnchanged()
+    end
+  elseif command == "commit" then
+    local config = arguments.getMandatory("config")
+    UciConfig(config).commit()
+
     exitChanged()
+  elseif command == "get_all" then
+    local config = arguments.getMandatory("config")
+    local values = uci:get_all(config)
+
+    exitUnchanged(values)
   else
-    exitUnchanged()
+    exitFailed("unsupported command '" .. command )
   end
-elseif command == "set_list" then
-  local option = arguments.getMandatory("option")
-  local value = arguments.getMandatory("value")
-
-  local uciSection = getSection()
-  if not uciSection.exists() then
-    uciSection.create()
-  end
-
-  if uciSection.setList(option, split(value, ",")) then
-    exitChanged()
-  else
-    exitUnchanged()
-  end
-elseif command == "delete" then
-  local option = arguments.getMandatory("option")
-
-  local uciSection = getSection()
-
-  if uciSection.delete(option) then
-    exitChanged()
-  else
-    exitUnchanged()
-  end
-elseif command == "commit" then
-  local config = arguments.getMandatory("config")
-  UciConfig(config).commit()
-
-  exitChanged()
-elseif command == "get_all" then
-  local config = arguments.getMandatory("config")
-  local values = uci:get_all(config)
-
-  exitUnchanged(values)
-else
-  exitFailed("unsupported command '" .. command )
 end
+
+main(arg)

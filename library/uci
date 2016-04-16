@@ -414,24 +414,6 @@ function UciSection(configName, sectionName, sectionType, sectionIndex)
 end
 
 
-function UciConfig(configName)
-  local uciConfig = {}
-
-
-  function uciConfig.section(sectionName, sectionType, sectionIndex)
-    return UciSection(configName, sectionName, sectionType, sectionIndex)
-  end
-
-
-  function uciConfig.commit()
-    uci:commit(configName)
-  end
-
-
-  return uciConfig
-end
-
-
 function Arguments(args)
   local object = {}
 
@@ -555,12 +537,12 @@ function getSection(arguments)
       index = nil
     end
 
-    uciSection = UciConfig(config).section(section, type, index)
+    uciSection = UciSection(config,section, type, index)
   else
     local type = arguments.getMandatory("type")
     local indexAsText = arguments.getMandatory("index")
 
-    uciSection = UciConfig(config).section(nil, type, tonumber(indexAsText))
+    uciSection = UciSection(config, nil, type, tonumber(indexAsText))
   end
 
   return uciSection
@@ -619,7 +601,7 @@ function main(args)
     end
   elseif command == "commit" then
     local config = arguments.getMandatory("config")
-    UciConfig(config).commit()
+    uci:commit(config)
 
     exitChanged()
   elseif command == "get_all" then

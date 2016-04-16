@@ -175,44 +175,50 @@ function split(inputstr, sep)
 end
 
 
-function exitFailed(message)
-  local failed = {
-    failed = true,
-    msg = message
-  }
-  print(json.stringify(failed))
-  os.exit(1)
-end
+function Application()
+  local application = {}
 
-
-function exitChanged(message)
-  local changed = {
-    changed = true,
-  }
-
-  if message then
-    changed["msg"] = message
-    print(json.stringify(changed))
-  else
-    print(json.stringify(changed))
-  end
-  os.exit(0)
-end
-
-
-function exitUnchanged(message)
-  local unchanged = {
-    changed = false,
-  }
-
-  if message then
-    unchanged["msg"] = message
-    print(json.stringify(unchanged))
-  else
-    print(json.stringify(unchanged))
+  function application.exitFailed(message)
+    local failed = {
+      failed = true,
+      msg = message
+    }
+    print(json.stringify(failed))
+    os.exit(1)
   end
 
-  os.exit(0)
+
+  function application.exitChanged(message)
+    local changed = {
+      changed = true,
+    }
+
+    if message then
+      changed["msg"] = message
+      print(json.stringify(changed))
+    else
+      print(json.stringify(changed))
+    end
+    os.exit(0)
+  end
+
+
+  function application.exitUnchanged(message)
+    local unchanged = {
+      changed = false,
+    }
+
+    if message then
+      unchanged["msg"] = message
+      print(json.stringify(unchanged))
+    else
+      print(json.stringify(unchanged))
+    end
+
+    os.exit(0)
+  end
+
+  return application
 end
 
 
@@ -475,7 +481,7 @@ function Arguments(args)
     local parameter = parseOptionalParameter(argumentName)
 
     if not parameter then
-      exitFailed("mandatory argument or value '" .. argumentName .. "' is missing")
+      error({message = "mandatory argument or value '" .. argumentName .. "' is missing"})
     end
 
     return parameter
@@ -517,67 +523,78 @@ end
 
 function main(args)
   local arguments = Arguments(args)
-  local command = arguments.getMandatory("command")
+  local application = Application()
+
+  local status, err = pcall(
+    function()
+      local command = arguments.getMandatory("command")
 
 
-  if command == "get" then
-    local option = arguments.getMandatory("option")
+      if command == "get" then
+        local option = arguments.getMandatory("option")
 
-    local uciSection = getSection(arguments)
+        local uciSection = getSection(arguments)
 
-    exitUnchanged(uciSection.get(option))
-  elseif command == "set" then
-    local option = arguments.getMandatory("option")
-    local value = arguments.getMandatory("value")
+        application.exitUnchanged(uciSection.get(option))
+      elseif command == "set" then
+        local option = arguments.getMandatory("option")
+        local value = arguments.getMandatory("value")
 
-    local uciSection = getSection(arguments)
+        local uciSection = getSection(arguments)
 
-    if not uciSection.exists() then
-      uciSection.create()
+        if not uciSection.exists() then
+          uciSection.create()
+        end
+
+        if uciSection.set(option, value) then
+          application.exitChanged()
+        else
+          application.exitUnchanged()
+        end
+      elseif command == "set_list" then
+        local option = arguments.getMandatory("option")
+        local value = arguments.getMandatory("value")
+
+        local uciSection = getSection(arguments)
+        if not uciSection.exists() then
+          uciSection.create()
+        end
+
+        if uciSection.setList(option, split(value, ",")) then
+          application.exitChanged()
+        else
+          application.exitUnchanged()
+        end
+      elseif command == "delete" then
+        local option = arguments.getMandatory("option")
+
+        local uciSection = getSection(arguments)
+
+        if uciSection.delete(option) then
+          application.exitChanged()
+        else
+          application.exitUnchanged()
+        end
+      elseif command == "commit" then
+        local config = arguments.getMandatory("config")
+        uci:commit(config)
+
+        application.exitChanged()
+      elseif command == "get_all" then
+        local config = arguments.getMandatory("config")
+        local values = uci:get_all(config)
+
+        application.exitUnchanged(values)
+      else
+        error({message = "unsupported command '" .. command} )
+      end
     end
+  )
 
-    if uciSection.set(option, value) then
-      exitChanged()
-    else
-      exitUnchanged()
-    end
-  elseif command == "set_list" then
-    local option = arguments.getMandatory("option")
-    local value = arguments.getMandatory("value")
-
-    local uciSection = getSection(arguments)
-    if not uciSection.exists() then
-      uciSection.create()
-    end
-
-    if uciSection.setList(option, split(value, ",")) then
-      exitChanged()
-    else
-      exitUnchanged()
-    end
-  elseif command == "delete" then
-    local option = arguments.getMandatory("option")
-
-    local uciSection = getSection(arguments)
-
-    if uciSection.delete(option) then
-      exitChanged()
-    else
-      exitUnchanged()
-    end
-  elseif command == "commit" then
-    local config = arguments.getMandatory("config")
-    uci:commit(config)
-
-    exitChanged()
-  elseif command == "get_all" then
-    local config = arguments.getMandatory("config")
-    local values = uci:get_all(config)
-
-    exitUnchanged(values)
-  else
-    exitFailed("unsupported command '" .. command )
+  if(err) then
+    application.exitFailed(err.message)
   end
+
 end
 
 main(arg)

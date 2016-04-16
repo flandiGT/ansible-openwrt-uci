@@ -252,40 +252,6 @@ function areListsEqual(first, second)
 end
 
 
-function areEqual(firstValue, secondValue)
-  local areEqual = true
-  if firstValue then
-    if secondValue then
-      local newObjectType = type(secondValue)
-      if newObjectType == type(firstValue) then
-        if newObjectType == "table" then
-          for k, v in pairs(secondValue) do
-            if not areEqual(firstValue[k], v) then
-              areEqual = false
-              break
-            end
-          end
-        else
-          areEqual = firstValue == secondValue
-        end
-      else
-        areEqual = false
-      end
-    else
-      areEqual = false
-    end
-  else
-    if not secondValue then
-      areEqual = true
-    else
-      areEqual = false
-    end
-  end
-
-  return areEqual
-end
-
-
 function UciSection(configName, sectionName, sectionType, sectionIndex)
   local uciSection = {}
   local readSection

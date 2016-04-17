@@ -160,19 +160,37 @@ end
 local uci  = require('uci').cursor()
 local json = createJson()
 
+--------------------------------------------------------------------------------
+-- StringUtils: encapsulate string utility functions
+--------------------------------------------------------------------------------
+function StringUtils()
+  local stringUtils = {}
 
-function split(inputstr, sep)
-  if sep == nil then
-    sep = "%s"
+  function stringUtils.split(inputstr, sep)
+    if sep == nil then
+      sep = "%s"
+    end
+    local t={}
+    local i=1
+    for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
+      t[i] = str
+      i = i + 1
+    end
+    return t
   end
-  local t={}
-  local i=1
-  for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
-    t[i] = str
-    i = i + 1
+
+  function stringUtils.isEmpty(str)
+    local escapedString = string.gsub(str, "\"", "")
+    escapedString = string.gsub(escapedString, "'", "")
+
+    return string.len(escapedString) == 0
   end
-  return t
+
+  return stringUtils
 end
+--------------------------------------------------------------------------------
+
+local StringUtils = StringUtils()
 
 
 --------------------------------------------------------------------------------
@@ -354,7 +372,12 @@ function UciSection(configName, sectionName, sectionType, sectionIndex)
     else
       local sectionName = readName()
 
-      uci:set(configName, sectionName, optionName, value)
+      if value then
+        uci:set(configName, sectionName, optionName, value)
+      else
+        uci:delete(configName, sectionName, optionName)
+      end
+
       uci:save(configName)
 
       hasChanged = true
@@ -423,7 +446,7 @@ function Arguments(args)
       argumentsLine = string.gsub(argumentsLine, "\\", "")
       argumentsLine = string.gsub(argumentsLine, "\"", "")
 
-      return split(argumentsLine, " ")
+      return StringUtils.split(argumentsLine, " ")
     end
 
     return parser
@@ -587,7 +610,13 @@ function main(args)
           uciSection.create()
         end
 
-        if uciSection.setList(option, split(value, ",")) then
+        if StringUtils.isEmpty(value) then
+          if uciSection.delete(option) then
+            application.exitChanged()
+          else
+            application.exitUnchanged()
+          end
+        elseif uciSection.setList(option, StringUtils.split(value, ",")) then
           application.exitChanged()
         else
           application.exitUnchanged()

@@ -161,6 +161,49 @@ local uci  = require('uci').cursor()
 local json = createJson()
 
 --------------------------------------------------------------------------------
+-- ArrayUtils: encapsulate array utility methods
+--------------------------------------------------------------------------------
+function ArrayUtils()
+  local arrayUtils = {}
+
+  function arrayUtils.buildFromIterator(...)
+    local t={}
+    local i=1
+
+    for str in ... do
+      t[i] = str
+      i = i + 1
+    end
+
+    return t
+  end
+
+
+  function arrayUtils.concat(arrayOne, arrayTwo)
+    local t = {}
+
+    for i=1,#arrayOne do
+      t[i] = arrayOne[i]
+      i = i + 1
+    end
+
+    for i=1,#arrayTwo do
+      t[#arrayOne + i] = arrayTwo[i]
+      i = i + 1
+    end
+
+    return t
+  end
+
+
+  return arrayUtils
+end
+--------------------------------------------------------------------------------
+
+local ArrayUtils = ArrayUtils()
+
+
+--------------------------------------------------------------------------------
 -- StringUtils: encapsulate string utility functions
 --------------------------------------------------------------------------------
 function StringUtils()
@@ -170,13 +213,15 @@ function StringUtils()
     if sep == nil then
       sep = "%s"
     end
-    local t={}
-    local i=1
-    for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
-      t[i] = str
-      i = i + 1
-    end
-    return t
+
+    local match = string.gmatch(inputstr, "([^"..sep.."]+)")
+
+    return ArrayUtils.buildFromIterator(match)
+  end
+
+  function stringUtils.matchAll(inputstr, pattern)
+    local match = string.gmatch(inputstr, pattern)
+    return ArrayUtils.buildFromIterator(match)
   end
 
   function stringUtils.isEmpty(str)
@@ -242,6 +287,8 @@ function Application()
   return application
 end
 --------------------------------------------------------------------------------
+
+local application = Application()
 
 
 --------------------------------------------------------------------------------
@@ -446,7 +493,10 @@ function Arguments(args)
       argumentsLine = string.gsub(argumentsLine, "\\", "")
       argumentsLine = string.gsub(argumentsLine, "\"", "")
 
-      return StringUtils.split(argumentsLine, " ")
+      local matchOne = StringUtils.matchAll(argumentsLine, "([A-Za-z0-9_]+=([a-zA-Z0-9\._]*))")
+      local matchTwo = StringUtils.matchAll(argumentsLine, "([A-Za-z0-9_]+=('[a-zA-Z0-9',. %[%]]*'))")
+
+      return ArrayUtils.concat(matchOne, matchTwo)
     end
 
     return parser
@@ -483,22 +533,24 @@ function Arguments(args)
   local arguments = getArgumentParser().parse(args)
 
 
-  local function tryToParseOptionalParameter(arguments, name)
-    local find = name .. "="
-    local length = string.len(find)
-    local start_index = string.find(arguments, find)
-
-    if not start_index then
+  local function tryToParseParameterValue(arguments, pattern)
+    if string.find(arguments, pattern) then
+      local match = string.match(arguments, pattern)
+      return match
+    else
       return nil
     end
+  end
 
-    local last_index = string.find(arguments, " ", start_index)
 
-    if not last_index then
-      last_index = string.len(arguments)
+  local function tryToParseOptionalParameter(arguments, name)
+    local quotedValue = tryToParseParameterValue(arguments, name .. '=\'(.*)\'')
+
+    if quotedValue then
+      return quotedValue
+    else
+      return tryToParseParameterValue(arguments, name .. "=(.+)")
     end
-
-    return string.sub(arguments, start_index + length, last_index)
   end
 
 
@@ -573,7 +625,6 @@ end
 --------------------------------------------------------------------------------
 function main(args)
   local arguments = Arguments(args)
-  local application = Application()
 
   local status, err = pcall(
     function()

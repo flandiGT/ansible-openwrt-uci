@@ -374,6 +374,10 @@ function UciSection(configName, sectionName, sectionType, sectionIndex)
     if not readSectionName then
       local section = read()
       readSectionName = section[".name"]
+
+      if not readSectionName then
+        readSectionName = section
+      end
     end
 
     return readSectionName
@@ -493,10 +497,10 @@ function Arguments(args)
       argumentsLine = string.gsub(argumentsLine, "\\", "")
       argumentsLine = string.gsub(argumentsLine, "\"", "")
 
-      local matchOne = StringUtils.matchAll(argumentsLine, "([A-Za-z0-9_]+=([a-zA-Z0-9\._]*))")
-      local matchTwo = StringUtils.matchAll(argumentsLine, "([A-Za-z0-9_]+=('[a-zA-Z0-9',. %[%]]*'))")
+      local unquotedArguments = StringUtils.matchAll(argumentsLine, "([A-Za-z0-9_]+=([\33-\38\40-\126\128-\244]+))")
+      local quotedArguments = StringUtils.matchAll(argumentsLine, "([A-Za-z0-9_]+=('[\33-\126\128-\244 ]+'))")
 
-      return ArrayUtils.concat(matchOne, matchTwo)
+      return ArrayUtils.concat(unquotedArguments, quotedArguments)
     end
 
     return parser
@@ -699,7 +703,11 @@ function main(args)
   )
 
   if(err) then
-    application.exitFailed(err.message)
+    if(err.message) then
+      application.exitFailed(err.message)
+    else
+      application.exitFailed(json.stringify(err))
+    end
   end
 
 end

@@ -196,6 +196,13 @@ function ArrayUtils()
   end
 
 
+  function arrayUtils.length(array)
+    local count = 0
+    for _ in pairs(array) do count = count + 1 end
+    return count
+  end
+
+
   return arrayUtils
 end
 --------------------------------------------------------------------------------
@@ -671,10 +678,22 @@ function main(args)
           else
             application.exitUnchanged()
           end
-        elseif uciSection.setList(option, StringUtils.split(value, ",")) then
-          application.exitChanged()
         else
-          application.exitUnchanged()
+          local regexMatch = StringUtils.matchAll(value, "u'''([\33-\38\40-\43\45-\126\128-\244 ]+)'''")
+          local commaSplit = StringUtils.split(value, ",")
+
+          local values
+          if ArrayUtils.length(regexMatch) >= ArrayUtils.length(commaSplit) then
+            values = regexMatch
+          else
+            values = commaSplit
+          end
+
+          if uciSection.setList(option, values) then
+            application.exitChanged()
+          else
+            application.exitUnchanged()
+          end
         end
       elseif command == "delete" then
         local option = arguments.getMandatory("option")

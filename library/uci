@@ -528,30 +528,6 @@ function UciSection(configName, sectionName, sectionType, sectionIndex)
   end
 
 
-  function uciSection.setList(optionName, value)
-    local hasChanged
-    local oldValue = get(optionName)
-
-    if oldValue and ListUtils.areEqual(oldValue, value) then
-      hasChanged = false
-    else
-      local sectionName = readName()
-
-      if value then
-        uci:set(configName, sectionName, optionName, value)
-      else
-        uci:delete(configName, sectionName, optionName)
-      end
-
-      uci:save(configName)
-
-      hasChanged = true
-    end
-
-    return hasChanged
-  end
-
-
   function uciSection.delete(optionName)
     local hasBeenDeleted
     local oldValue = get(optionName)
@@ -748,7 +724,6 @@ function main(args)
     function()
       local command = arguments.getMandatory("command")
 
-
       if command == "get" then
         local option = arguments.getMandatory("option")
 
@@ -769,28 +744,6 @@ function main(args)
           application.exitChanged()
         else
           application.exitUnchanged()
-        end
-      elseif command == "set_list" then
-        local option = arguments.getMandatory("option")
-        local value = arguments.getMandatory("value")
-
-        local uciSection = getSection(arguments)
-        if not uciSection.exists() then
-          uciSection.create()
-        end
-
-        if StringUtils.isEmpty(value) then
-          if uciSection.delete(option) then
-            application.exitChanged()
-          else
-            application.exitUnchanged()
-          end
-        else
-           if uciSection.setList(option, StringUtils.splitToList(value)) then
-            application.exitChanged()
-          else
-            application.exitUnchanged()
-          end
         end
       elseif command == "set_object" then
         local valuesString = arguments.getMandatory("values")

@@ -3,6 +3,7 @@
 --------------------------------------------------------------------------------
 -- JSON stringlify and parse functions
 -- downloaded from: https://gist.github.com/tylerneylon/59f4bcf316be525b30ab
+-- Big thank you to tylerneylon for that :)
 --------------------------------------------------------------------------------
 function createJson()
   local json = {}
@@ -238,6 +239,42 @@ function StringUtils()
     return string.len(escapedString) == 0
   end
 
+  function stringUtils.splitToList(inputstr)
+    local regexMatch = stringUtils.matchAll(value, "u'''([\33-\38\40-\43\45-\126\128-\244 ]+)'''")
+    local commaSplit = stringUtils.split(value, ",")
+
+    local values
+    if ArrayUtils.length(regexMatch) >= ArrayUtils.length(commaSplit) then
+      values = regexMatch
+    else
+      values = commaSplit
+    end
+
+    return values
+  end
+
+  function stringUtils.equals(a, b)
+    local areEqual
+
+    if a == b then
+      areEqual = true
+    elseif a == nil then
+      areEqual = false
+    elseif b == nil then
+      areEqual = false
+    elseif type(a) == type(b) then
+      areEqual = (a == b)
+    elseif type(a) == 'number' and type(b) == 'string' then
+      areEqual = tostring(a) == b
+    elseif type(b) == 'number' and type(a) == 'string' then
+      areEqual = tostring(b) == a
+    else
+      areEqual = false
+    end
+
+    return areEqual
+  end
+
   return stringUtils
 end
 --------------------------------------------------------------------------------
@@ -339,6 +376,11 @@ function ListUtils()
     return true
   end
 
+
+  function listUtils.size(list)
+    return size(list)
+  end
+
   return listUtils
 end
 --------------------------------------------------------------------------------
@@ -415,6 +457,71 @@ function UciSection(configName, sectionName, sectionType, sectionIndex)
       uci:save(configName)
 
       hasChanged = true
+    end
+
+    return hasChanged
+  end
+
+
+  local function setTableValue(sectionName, optionName, value)
+    local hasChanged = false
+    local oldValue = get(optionName)
+
+    if value and ListUtils.size(value) > 0 then
+      if oldValue == nil or ListUtils.areEqual(oldValue, value) == false then
+        uci:set(configName, sectionName, optionName, value)
+        hasChanged = true
+      end
+    elseif oldValue ~= nil then
+      uci:delete(configName, sectionName, optionName)
+      hasChanged = true
+    end
+
+    return hasChanged
+  end
+
+
+  local function setTextValue(sectionName, optionName, value)
+    local hasChanged = false
+    local oldValue = get(optionName)
+
+    if string.len(value) > 0 then
+      if oldValue == nil or StringUtils.equals(oldValue, value) == false then
+        uci:set(configName, sectionName, optionName, value)
+        hasChanged = true
+      end
+    elseif oldValue ~= nil then
+      uci:delete(configName, sectionName, optionName)
+      hasChanged = true
+    end
+
+    return hasChanged
+  end
+
+
+  function uciSection.setObject(values)
+    local hasChanged = false
+    local sectionName = readName()
+
+    for optionName,value in pairs(values) do
+      if value ~= nil then
+        if type(value) == 'table' then
+          hasChanged = setTableValue(sectionName, optionName, value) or hasChanged
+        else
+          hasChanged = setTextValue(sectionName, optionName, value) or hasChanged
+        end
+      else
+        local oldValue = get(optionName)
+
+        if oldValue then
+          uci:delete(configName, sectionName, optionName)
+          hasChanged = true
+        end
+      end
+    end
+
+    if hasChanged then
+      uci:save(configName)
     end
 
     return hasChanged
@@ -501,8 +608,8 @@ function Arguments(args)
     function parser.parse(arguments)
       local argumentsLine = fs.readfile(args[1])
 
-      argumentsLine = string.gsub(argumentsLine, "\\", "")
-      argumentsLine = string.gsub(argumentsLine, "\"", "")
+      argumentsLine = string.gsub(argumentsLine, "u'\"'\"'", "\"")
+      argumentsLine = string.gsub(argumentsLine, "'\"'\"'", "\"")
 
       local unquotedArguments = StringUtils.matchAll(argumentsLine, "([A-Za-z0-9_]+=([\33-\38\40-\126\128-\244]+))")
       local quotedArguments = StringUtils.matchAll(argumentsLine, "([A-Za-z0-9_]+=('[\33-\126\128-\244 ]+'))")
@@ -679,21 +786,25 @@ function main(args)
             application.exitUnchanged()
           end
         else
-          local regexMatch = StringUtils.matchAll(value, "u'''([\33-\38\40-\43\45-\126\128-\244 ]+)'''")
-          local commaSplit = StringUtils.split(value, ",")
-
-          local values
-          if ArrayUtils.length(regexMatch) >= ArrayUtils.length(commaSplit) then
-            values = regexMatch
-          else
-            values = commaSplit
-          end
-
-          if uciSection.setList(option, values) then
+           if uciSection.setList(option, StringUtils.splitToList(value)) then
             application.exitChanged()
           else
             application.exitUnchanged()
           end
+        end
+      elseif command == "set_object" then
+        local valuesString = arguments.getMandatory("values")
+        local values = json.parse(valuesString)
+        local uciSection = getSection(arguments)
+
+        if not uciSection.exists() then
+          uciSection.create()
+        end
+
+        if uciSection.setObject(values) then
+          application.exitChanged()
+        else
+          application.exitUnchanged()
         end
       elseif command == "delete" then
         local option = arguments.getMandatory("option")
@@ -716,7 +827,7 @@ function main(args)
 
         application.exitUnchanged(values)
       else
-        error({message = "unsupported command '" .. command} )
+        error({message = "unsupported command '" .. command .. "'"} )
       end
     end
   )

@@ -2,11 +2,12 @@
 galaxy_info:
   author: flandiGT
   description: library for setting of uci config keys on openwrt systems
+  license: MIT
   min_ansible_version: 1.7
-  platforms: []
-  # - Openwrt
-  # versions:
-  # - 14.07
+  platforms:
+  - name: Openwrt
+    versions:
+    - 15.05
   categories:
     - system
 dependencies: []
